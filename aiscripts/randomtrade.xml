@@ -1,0 +1,991 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- RandomTrade Ai, Created by Language. Version 122-->
+<aiscript xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="randomtrader" xsi:noNamespaceSchemaLocation="aiscripts.xsd" version="122">
+  <order id="RandomTrade" name="RandomTrade" description="Random Trader Logic" category="trade" infinite="true">
+    <params>
+      <!-- Define where the trader will base itself -->
+      <param name="home" default="this.sector" type="object" text="TraderHome" comment="Home Sector/Station">
+        <input_param name="class" value="[class.sector,class.station,class.object]"/>
+      </param>
+      <param name="homeBound" type="bool" default="false" text="HomeBound" comment="Trade only around home?"/>
+      <!-- Some Range configurations -->
+      <param name="maxBuy" default="3" type="number" text="{1041, 10054}" comment="Max gate distance to buy.">
+        <input_param name="startvalue" value="0"/>
+        <input_param name="min" value="0"/>
+        <input_param name="max" value="@this.ship.pilot.skill.piloting * 2"/>
+        <input_param name="step" value="1"/>
+      </param>
+      <param name="maxSell" default="3" type="number" text="{1041, 10057}" comment="Max gate distance to sell.">
+        <input_param name="startvalue" value="0"/>
+        <input_param name="min" value="0"/>
+        <input_param name="max" value="@this.ship.pilot.skill.piloting * 2"/>
+        <input_param name="step" value="1"/>
+      </param>
+      <param name="bypass" type="bool" default="false" text="Ignore Restriction" comment="Do we ignore faction restrictions on owned stations?"/>
+      <param name="stationMode" type="bool" default="false" text="Station Trader" comment="When enabled, toggles the trader into station trader mode."/>
+      <param name="forceOwn" type="bool" default="true" text="Force Own Sells" comment="When enabled and station trader,
+             always searches for own sells regardless of gates distance while supplying home station."/>
+
+      <!-- What are we hauling? -->
+      <param name="wareBasket" default="[]" type="list" text="{1041, 10146}" comment="Wares">
+        <input_param name="type" value="'ware'"/>
+        <input_param name="cancarry" value="this.ship"/>
+      </param>
+
+      <param name="usePresets" type="bool" default="true" text="Copy Presets" comment="Button to enable presets."/>
+      <param name="allWares" type="bool" default="false" text="All Wares" comment="Enable all wares in the basket."/>
+      <param name="legalWares" type="bool" default="true" text="Legal Wares" comment="Enable all the legal wares."/>
+      <param name="illegalWares" type="bool" default="false" text="Illegal Wares" comment="Enable all the illegal wares."/>
+      <param name="shipBuildingWares" type="bool" default="false" text="ShipBuilding Wares" comment="Enable all the shipbuilding wares."/>
+      <param name="stationBuildingWares" type="bool" default="false" text="StationBuilding Wares" comment="Enable all the stationbuilding wares."/>
+      <param name="hightechWares" type="bool" default="false" text="HighTech Wares" comment="Enable all the HichTech wares."/>
+      <param name="refinedWares" type="bool" default="false" text="Refined Wares" comment="Enable all the Refined wares."/>
+      <param name="bioWares" type="bool" default="false" text="Biological Wares" comment="Enable all the Bio wares."/>
+      
+      <!--scale min profit?-->
+      <param name="profitScale" type="number" text="Scale min profit? (%)" default="100" comment="Should we look for trades with less profit in order to find one more likely?">
+        <input_param name="min" value="10"/>
+        <input_param name="max" value="100"/>
+        <input_param name="step" value="5"/>
+      </param>
+
+      <!--stockRatios while Station Trader mode-->
+      <param name="stockRatioToBuy" type="number" text="Buy before X% filled (Station Trader)" default="70" comment="How many % of the needed wares for our home station should we keep filled?">
+        <input_param name="min" value="10"/>
+        <input_param name="max" value="90"/>
+        <input_param name="step" value="5"/>
+      </param>
+      <param name="stockRatioToSell" type="number" text="Sell after X% filled (Station Trader)" default="60" comment="How many % of the producing wares should be in the storage before we start selling (delivering) to other factions?">
+        <input_param name="min" value="10"/>
+        <input_param name="max" value="90"/>
+        <input_param name="step" value="5"/>
+      </param>
+      
+      <!-- Allowed factions. -->
+      <param name="allowAllFactions" type="bool" default="false" text="Allow all factions" comment="Allow all factions to trade with?"/>
+      <param name="allowPlayer" type="bool" default="true" text="{20203,101}" comment="Allow this faction?"/>
+      <!-- Argon Based Factions -->
+      <param name="allowArgon" type="bool" default="true" text="{20203,201}" comment="Allow this faction?"/>
+      <param name="allowAntigone" type="bool" default="true" text="{20203,301}" comment="Allow this faction?"/>
+      <!-- Teladi Based Factions -->
+      <param name="allowTeladi" type="bool" default="true" text="{20203,601}" comment="Allow this faction?"/>
+      <param name="allowMinistry" type="bool" default="true" text="{20203,701}" comment="Allow this faction?"/>
+      <!-- Paranid Based Factions -->
+      <param name="allowParanid" type="bool" default="true" text="{20203,401}" comment="Allow this faction?"/>
+      <param name="allowHolyOrder" type="bool" default="true" text="{20203,501}" comment="Allow this faction?"/>
+      <param name="allowAlliance" type="bool" default="true" text="{20203,801}" comment="Allow this faction?"/>
+      <!-- Split Based Factions (DLC)-->
+      <param name="allowSplit" type="bool" default="true" text="{20203,2001}" comment="Allow this faction?"/>
+      <param name="allowFreeSplit" type="bool" default="true" text="{20203,1601}" comment="Allow this faction?"/>
+      <!-- Terran Factions (DLC)-->
+      <param name="allowTerran" type="bool" default="true" text="{20203,3001}" comment="Allow this faction?"/>
+      <param name="allowPioneers" type="bool" default="true" text="{20203,2901}" comment="Allow this faction?"/>
+      <!-- Pirate Factions -->
+      <param name="allowHatikvah" type="bool" default="true" text="{20203,901}" comment="Allow this faction?"/>
+      <param name="allowScaleplate" type="bool" default="false" text="{20203,1001}" comment="Allow this faction?"/>
+      <param name="allowYaki" type="bool" default="false" text="{20203,2801}" comment="Allow this faction?"/>
+      <param name="updateSubordinates" type="bool" default="false" text="Update subordinates" comment="forcefully update settings of subordinate randomtraders"/>
+    </params>
+    <skill min="20"/> <!-- Not any hotshot can be a randomtrader, theres standards ye know? -->
+    <requires>
+      <match shiptype="shiptype.lasertower" negate="true"/>
+    </requires>
+  </order>
+
+  <interrupts>
+    <handler ref="SectorChangeHandler"/>
+    <handler ref="AttackHandler"/>
+    <handler ref="MissileLockHandler"/>
+    <handler ref="ScannedHandler"/>
+    <handler ref="InspectedHandler"/>
+    <handler ref="FoundAbandonedHandler"/>
+    <handler ref="ResupplyHandler"/>
+    <handler ref="JobRemoveRequestHandler"/>
+    <handler ref="TargetInvalidHandler"/>
+  </interrupts>
+
+  <init>
+    <substitute_text text="$debugFileName" source="this.ship.knownname+' - '+this.ship.idcode">
+      <replace string="'('" with="''"/>
+      <replace string="')'" with="''"/>
+    </substitute_text>
+    <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'Starting Log File Version: 122'" append="false"/>
+    
+    <set_order_syncpoint_reached order="this.ship.order"/>
+
+    <set_command_action commandaction="commandaction.searchingtrades"/>
+
+    <!--which factions do we allow?-->
+    <do_if value="$allowAllFactions">
+      <set_value name="$allowedFactions" exact="[faction.player,faction.argon,faction.antigone,faction.paranid,faction.holyorder,faction.alliance,
+                 faction.teladi,faction.ministry,faction.hatikvah,faction.scaleplate]"/>
+      <do_if value="faction.split">
+        <append_to_list name="$allowedFactions" exact="faction.split"/>
+        <append_to_list name="$allowedFactions" exact="faction.freesplit"/>
+      </do_if>
+      <do_if value="faction.terran">
+        <append_to_list name="$allowedFactions" exact="faction.terran"/>
+        <append_to_list name="$allowedFactions" exact="faction.pioneers"/>
+        <append_to_list name="$allowedFactions" exact="faction.yaki"/>
+      </do_if>
+    </do_if>
+    <do_else>
+      <create_list name="$allowedFactions"/>
+      <do_if value="$allowPlayer">
+        <append_to_list name="$allowedFactions" exact="faction.player"/>
+      </do_if>
+      <do_if value="$allowArgon">
+        <append_to_list name="$allowedFactions" exact="faction.argon"/>
+      </do_if>
+      <do_if value="$allowAntigone">
+        <append_to_list name="$allowedFactions" exact="faction.antigone"/>
+      </do_if>
+      <do_if value="$allowParanid">
+        <append_to_list name="$allowedFactions" exact="faction.paranid"/>
+      </do_if>
+      <do_if value="$allowHolyOrder">
+        <append_to_list name="$allowedFactions" exact="faction.holyorder"/>
+      </do_if>
+      <do_if value="$allowAlliance">
+        <append_to_list name="$allowedFactions" exact="faction.alliance"/>
+      </do_if>
+      <do_if value="$allowTeladi">
+        <append_to_list name="$allowedFactions" exact="faction.teladi"/>
+      </do_if>
+      <do_if value="$allowMinistry">
+        <append_to_list name="$allowedFactions" exact="faction.ministry"/>
+      </do_if>
+      <do_if value="$allowHatikvah">
+        <append_to_list name="$allowedFactions" exact="faction.hatikvah"/>
+      </do_if>
+      <do_if value="$allowSplit and faction.split">
+        <append_to_list name="$allowedFactions" exact="faction.split"/>
+      </do_if>
+      <do_if value="$allowFreeSplit and faction.freesplit">
+        <append_to_list name="$allowedFactions" exact="faction.freesplit"/>
+      </do_if>
+      <do_if value="$allowTerran and faction.terran">
+        <append_to_list name="$allowedFactions" exact="faction.terran"/>
+      </do_if>
+      <do_if value="$allowPioneers and faction.pioneers">
+        <append_to_list name="$allowedFactions" exact="faction.pioneers"/>
+      </do_if>
+      <do_if value="$allowYaki and faction.yaki">
+        <append_to_list name="$allowedFactions" exact="faction.yaki"/>
+      </do_if>
+      <do_if value="$allowScaleplate">
+        <append_to_list name="$allowedFactions" exact="faction.scaleplate"/>
+      </do_if>
+    </do_else>
+
+    <!--some global variables-->
+    <set_value name="$pilotSkill" exact="this.ship.pilot.skill.management"/>
+    <!--minimum profit and maximum relative price while buying depend on management skill of pilot and profit scale - slider-->
+    <set_value name="$minProfit" exact="(this.ship.cargo.capacity.container)f*(401.25+33.25*($pilotSkill)f)*(($profitScale)f/100.0)"/>
+    <set_value name="$maxBuyRelPrice" exact="((-0.325-0.025*($pilotSkill)f)/90.0-0.01)*($profitScale)f+1-(-0.325-0.025*($pilotSkill)f)/9.0"/>
+    <set_value name="$buyRange" exact="if $homeBound then $home else this.ship"/>
+
+    <set_value name="$sellRange" exact="$home"/>
+
+    <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'pilot: '+this.ship.pilot.knownname+
+                     ', pilotskill: '+$pilotSkill+', minprofit for free trading: '+$minProfit+
+                     ', ship capacity: '+this.ship.cargo.capacity.container+', max relprice to buy: '+$maxBuyRelPrice+', profitscale: '+$profitScale+
+                     ', player money: '+player.money+', commander money: '+@this.ship.commander.money"/>
+
+    <!--initialize fleet inner communication (search interval on idling ships)-->
+    <do_if value="this.ship.commander" negate="true">
+      <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'Idling fleet: I am commander'"/>
+      <set_value name="this.$randomXLastUpdated" exact="player.age"/>
+      <set_value name="this.$randomXForceNext" exact="0"/>
+    </do_if>
+
+  </init>
+
+  <attention min="unknown">
+    <actions>
+
+      <!--are ware presets used?-->
+      <do_if value="$wareBasket.count == 0 and $usePresets" negate="true"> <!--for presets to kick in, wareBasket must be empty and UsePresets toggled-->
+        <resume label="tradableWares"/>
+      </do_if>
+      
+      <!-- ware preset lists -->
+      <set_value name="$listCounter" exact="-1"/>
+      <label name="wareLists"/>
+      <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'detected presets'"/>
+      <do_if value="$allWares and $listCounter lt 1">
+        <set_value name="$waresToAdd" exact="[ware.spacefuel,ware.spaceweed,ware.advancedcomposites,ware.advancedelectronics,ware.antimattercells,ware.antimatterconverters,ware.claytronics,
+                     ware.dronecomponents,ware.engineparts,ware.fieldcoils,ware.hullparts,ware.refinedmetals,ware.scanningarrays,ware.shieldcomponents,ware.siliconwafers,
+                     ware.teladianium,ware.turretcomponents,ware.water,ware.wheat,ware.energycells,ware.foodrations,ware.graphene,ware.majadust,ware.majasnails,ware.meat,ware.cheltmeat,
+                     ware.scruffinfruits,ware.microchips,ware.quantumtubes,ware.medicalsupplies,ware.missilecomponents,ware.nostropoil,ware.plasmaconductors,ware.smartchips,ware.sojabeans,
+                     ware.sojahusk,ware.spices,ware.sunriseflowers,ware.superfluidcoolant,ware.swampplant,ware.weaponcomponents, ware.computronicsubstrate,ware.metallicmicrolattice,
+                     ware.proteinpaste,ware.stimulants,ware.terranmre,ware.siliconcarbide]"/>
+        <set_value name="$listCounter" exact="100"/>
+        <resume label="addtoWaresToBasket"/>
+      </do_if>
+      <do_elseif value="$legalWares and $listCounter lt 1">
+        <set_value name="$waresToAdd" exact="[ware.advancedcomposites,ware.advancedelectronics,ware.antimattercells,ware.antimatterconverters,ware.claytronics,
+                     ware.dronecomponents,ware.engineparts,ware.fieldcoils,ware.hullparts,ware.refinedmetals,ware.scanningarrays,ware.shieldcomponents,ware.siliconwafers,
+                     ware.teladianium,ware.turretcomponents,ware.water,ware.wheat,ware.energycells,ware.foodrations,ware.graphene,ware.majasnails,ware.meat,ware.cheltmeat,
+                     ware.scruffinfruits,ware.microchips,ware.quantumtubes,ware.medicalsupplies,ware.missilecomponents,ware.nostropoil,ware.plasmaconductors,ware.smartchips,ware.sojabeans,
+                     ware.sojahusk,ware.spices,ware.sunriseflowers,ware.superfluidcoolant,ware.swampplant,ware.weaponcomponents,ware.computronicsubstrate,ware.metallicmicrolattice,
+                     ware.proteinpaste,ware.siliconcarbide]"/>
+        <set_value name="$listCounter" exact="6"/>
+        <resume label="addtoWaresToBasket"/>
+      </do_elseif>
+      <do_elseif value="$bioWares and $listCounter lt 2">
+        <set_value name="$waresToAdd" exact="[ware.spices,ware.meat,ware.cheltmeat,ware.scruffinfruits,ware.wheat,ware.sojabeans,ware.majasnails,ware.sunriseflowers,
+                   ware.swampplant,ware.water,ware.foodrations,ware.medicalsupplies,ware.nostropoil,ware.sojahusk,ware.proteinpaste,ware.terranmre]"/>
+        <set_value name="$listCounter" exact="2"/>
+        <resume label="addtoWaresToBasket"/>
+      </do_elseif>
+      <do_elseif value="$shipBuildingWares and $listCounter lt 3">
+        <set_value name="$waresToAdd" exact="[ware.energycells,ware.engineparts,ware.hullparts,ware.fieldcoils,ware.advancedelectronics,ware.weaponcomponents,ware.turretcomponents,
+                   ware.antimatterconverters,ware.dronecomponents,ware.missilecomponents,ware.computronicsubstrate,ware.metallicmicrolattice]"/>
+        <set_value name="$listCounter" exact="3"/>
+        <resume label="addtoWaresToBasket"/>
+      </do_elseif>
+      <do_elseif value="$stationBuildingWares and $listCounter lt 4">
+        <set_value name="$waresToAdd" exact="[ware.energycells,ware.hullparts,ware.claytronics,ware.advancedelectronics,ware.turretcomponents,ware.shieldcomponents,ware.fieldcoils,
+                   ware.computronicsubstrate,ware.metallicmicrolattice]"/>
+        <set_value name="$listCounter" exact="4"/>
+        <resume label="addtoWaresToBasket"/>
+      </do_elseif>
+      <do_elseif value="$hightechWares and $listCounter lt 5">
+        <set_value name="$waresToAdd" exact="[ware.advancedcomposites,ware.engineparts,ware.hullparts,ware.microchips,ware.plasmaconductors,ware.quantumtubes,ware.scanningarrays,
+                   ware.smartchips,ware.computronicsubstrate,ware.siliconcarbide]"/>
+        <set_value name="$listCounter" exact="5"/>
+        <resume label="addtoWaresToBasket"/>
+      </do_elseif>
+      <do_elseif value="$refinedWares and $listCounter lt 6">
+        <set_value name="$waresToAdd" exact="[ware.antimattercells,ware.graphene,ware.superfluidcoolant,ware.refinedmetals,ware.siliconwafers,ware.teladianium,
+                   ware.metallicmicrolattice]"/>
+        <set_value name="$listCounter" exact="6"/>
+        <resume label="addtoWaresToBasket"/>
+      </do_elseif>
+      <do_elseif value="$illegalWares and $listCounter lt 7">
+        <set_value name="$waresToAdd" exact="[ware.spacefuel,ware.spaceweed,ware.majadust,ware.stimulants]"/>
+        <set_value name="$listCounter" exact="7"/>
+        <resume label="addtoWaresToBasket"/>
+      </do_elseif>
+
+      <!--all lists done-->
+      <remove_value name="$listCounter"/>
+      <remove_value name="$waresToAdd"/>
+      <resume label="tradableWares"/>
+      
+      <label name="addtoWaresToBasket"/> <!--labels inside if-statements, loops and init are not allowed-->
+      <do_all exact="$waresToAdd.count" counter="$ware">
+        <set_value name="$addingWare" exact="$waresToAdd.{$ware}"/>
+        <do_if value="$addingWare" negate="true">
+          <continue/>
+        </do_if>
+        <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'scanning ware: '+$addingWare"/>
+        <do_if value="$wareBasket.indexof.{$addingWare}" negate="true">
+          <append_to_list name="$wareBasket" exact="$addingWare"/>
+          <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'adding ware to basket'"/>
+        </do_if>
+        <wait min="1ms" max="2ms"/>
+      </do_all>
+      <resume label="wareLists"/>
+
+      <!--create new list of wares, so we can shuffle it (randomize), not shuffling $wareBasket, because param-->
+      <label name="tradableWares"/>
+      <set_value name="$tradableWares" exact="$wareBasket.clone"/>
+
+      <!--here we want to copy settings to subordinates-->
+      <set_value name="$subordinates" exact="this.ship.subordinates"/>
+      <set_value name="$subNr" exact="$subordinates.count"/>
+      <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'found subordinates: '+$subNr+', update them: '+$updateSubordinates"/>
+      <do_all exact="$subNr" counter="$nr">
+        <set_value name="$subordinate" exact="$subordinates.{$nr}"/>
+        <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'  '+$nr+' '+$subordinate.knownname"/>
+        <do_if value="($subordinate.type == this.ship.type and $subordinate.assignment == assignment.defence) or
+               ($subordinate.defaultorder.id == this.ship.defaultorder.id and $updateSubordinates)" negate="true">
+          <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'    not same shiptype: '+$subordinate.type+' and '+this.ship.type
+                         +', or not assigned to defend, assignment: '+$subordinate.assignment"/>
+          <continue/>
+        </do_if>
+        <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'    copying default behavior'"/>
+        <do_if value="$subordinate.defaultorder.id == this.ship.defaultorder.id">
+          <set_value name="$updating" exact="true"/>
+        </do_if>
+        <create_order object="$subordinate" default="true" id ="'RandomTrade'">
+          <param name="home"                  value="$home"/>
+          <param name="homeBound"             value="$homeBound"/>
+          <param name="maxBuy"                value="[$maxBuy, @$subordinate.pilot.skill.piloting * 2].min"/>
+          <param name="maxSell"               value="[$maxSell, @$subordinate.pilot.skill.piloting * 2].min"/>
+          <param name="bypass"                value="$bypass"/>
+          <param name="stationMode"           value="$stationMode"/>
+          <param name="forceOwn"              value="$forceOwn"/>
+          <param name="wareBasket"            value="$wareBasket"/>
+          <param name="usePresets"            value="$usePresets"/>
+          <param name="allWares"              value="$allWares"/>
+          <param name="legalWares"            value="$legalWares"/>
+          <param name="illegalWares"          value="$illegalWares"/>
+          <param name="shipBuildingWares"     value="$shipBuildingWares"/>
+          <param name="stationBuildingWares"  value="$stationBuildingWares"/>
+          <param name="hightechWares"         value="$hightechWares"/>
+          <param name="refinedWares"          value="$refinedWares"/>
+          <param name="bioWares"              value="$bioWares"/>
+          <param name="profitScale"           value="$profitScale"/>
+          <param name="stockRatioToBuy"       value="$stockRatioToBuy"/>
+          <param name="stockRatioToSell"      value="$stockRatioToSell"/>
+          <param name="allowAllFactions"      value="$allowAllFactions"/>
+          <param name="allowPlayer"           value="$allowPlayer"/>
+          <param name="allowArgon"            value="$allowArgon"/>
+          <param name="allowAntigone"         value="$allowAntigone"/>
+          <param name="allowTeladi"           value="$allowTeladi"/>
+          <param name="allowMinistry"         value="$allowMinistry"/>
+          <param name="allowParanid"          value="$allowParanid"/>
+          <param name="allowHolyOrder"        value="$allowHolyOrder"/>
+          <param name="allowSplit"            value="$allowSplit"/>
+          <param name="allowFreeSplit"        value="$allowFreeSplit"/>
+          <param name="allowAlliance"         value="$allowAlliance"/>
+          <param name="allowHatikvah"         value="$allowHatikvah"/>
+          <param name="allowTerran"           value="$allowTerran"/>
+          <param name="allowPioneers"         value="$allowPioneers"/>
+          <param name="allowScaleplate"       value="$allowScaleplate"/>
+          <param name="allowYaki"             value="$allowYaki"/>
+          <param name="updateSubordinates"    value="$updateSubordinates"/>
+        </create_order>
+        <set_object_commander object="$subordinate" commander="this.ship" assignment="assignment.trade"/>
+        <do_if value="@$updating" negate="true">
+          <remove_value name="$updating"/>
+          <wait min="5s" max="10s"/>
+        </do_if>
+      </do_all>
+      <!--count idling ships in fleet-->
+      <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'Idling fleet refresh start'"/>
+      <do_if value="this.ship.commander" negate="true">
+        <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'  I am commander'"/>
+        <set_value name="this.$randomXLastUpdated" exact="player.age"/>
+        <set_value name="this.$randomXIdleShips" exact="@this.$randomXIdling"/>
+        <do_all exact="$subNr" counter="$nr">
+          <set_value name="this.$randomXIdleShips" exact="@$subordinates.{$nr}.pilot.$randomXIdling" operation="add"/>
+        </do_all>
+        <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'  found '+($subNr+1)+' ships in fleet, '+@this.$randomXIdleShips+' are idling'"/>
+      </do_if>
+      <do_else>
+        <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'  I am not commander'"/>
+        <do_all exact="$subNr" counter="$nr">
+          <set_object_commander object="$subordinates.{$nr}" commander="this.ship.commander" assignment="assignment.trade"/>
+        </do_all>
+        <set_value name="$rng" min="180f" max="200f"/>
+        <set_value name="$lastUpdated" exact="player.age - this.ship.commander.pilot.$randomXLastUpdated"/>
+        <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'  last update is '+$lastUpdated+
+              ' ago, idling: '+@this.ship.commander.pilot.$randomXIdleShips+', chance to update: '+(100f / ((@this.ship.commander.pilot.$randomXIdleShips)f + 0.1) * ($lastUpdated / $rng))"/>
+        <do_if value="$lastUpdated ge $rng" chance="100f / ((@this.ship.commander.pilot.$randomXIdleShips)f + 0.1) * ($lastUpdated / $rng)">
+          <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'  updating'"/>
+          <set_value name="this.ship.commander.pilot.$randomXLastUpdated" exact="player.age"/>
+          <set_value name="this.ship.commander.pilot.$randomXIdleShips" exact="@this.ship.commander.pilot.$randomXIdling"/>
+          <set_value name="$subordinates" exact="this.ship.commander.subordinates"/>
+          <do_all exact="$subordinates.count" counter="$nr">
+            <set_value name="this.ship.commander.pilot.$randomXIdleShips" exact="@$subordinates.{$nr}.pilot.$randomXIdling" operation="add"/>
+          </do_all>
+          <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'  found '+($subordinates.count+1)+' ships in fleet, '+@this.ship.commander.pilot.$randomXIdleShips+' are idling'"/>
+        </do_if>
+      </do_else>
+      <remove_value name="$subordinates"/>
+      <remove_value name="$subNr"/>
+      <remove_value name="$subordinate"/>
+      <do_if value="$updateSubordinates">
+        <edit_order_param order="this.ship.defaultorder" param="'updateSubordinates'" value="false"/>
+      </do_if>
+
+      <!-- Trade logik
+      ================================================================================================
+      ================================================================================================
+      ================================================================================================-->
+      
+      <!--do we have wares in cargo already? lets try to sell them-->
+      <set_value name="$cargo" exact="this.ship.cargo.list"/>
+      <shuffle_list list="$cargo"/>
+      <set_value name="$searchStep" exact="(1.0-$maxBuyRelPrice)/4.0"/>
+      
+      <do_all exact="$cargo.count" counter="$wareInCargo">
+        <wait min="2ms" max="200ms" comment="Avoid performance peaks with find functions" />
+
+        <set_value name="$currentWare" exact="$cargo.{$wareInCargo}"/>
+        <set_value name="$amount" exact="this.ship.cargo.{$currentWare}.count"/>
+        <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'trying to sell '+$amount+' '+$currentWare+' from cargo'"/>
+        
+        <do_all exact="5" counter="$reduction">
+
+          <!--searching suiting buy offer, will search 5 times reducing requirements each time by 20% (just want to get rid of that stuff at some point)-->
+          <find_buy_offer tradepartner="this.ship" space ="player.galaxy" result="$buyOffer" wares="$currentWare">
+            <match_buyer tradesknownto="this.owner" owner="$allowedFactions">
+              <match_use_blacklist group="blacklistgroup.civilian" type="blacklisttype.objectactivity" object="this.ship"/>
+              <match_gate_distance object="$buyRange" max="$maxSell+$reduction-1">
+                <blacklist group="blacklistgroup.civilian" object="this.ship"/>
+              </match_gate_distance>
+              <match_relation_to object="this.ship" relation="neutral" comparison="ge"/><!--not selling to hostile buyers-->
+              <match_parent><!--parent of buyer is zone (empty space)-->
+                <match_relation_to object="this.ship" relation="neutral" comparison="ge"/><!--not selling to friendly buyers in hostile zones-->
+                <match_parent>
+                  <match_use_blacklist group="blacklistgroup.civilian" type="blacklisttype.sectortravel" object="this.ship"/>
+                  <match_use_blacklist group="blacklistgroup.civilian" type="blacklisttype.sectoractivity" object="this.ship"/>
+                </match_parent>
+              </match_parent>
+            </match_buyer>
+            <relativeprice min="-$maxBuyRelPrice-(($reduction)f-1.0)*$searchStep-0.001"/>
+            <amount min="$amount*(0.8^($reduction-1))"/>
+          </find_buy_offer>
+          <wait min="1ms" max="100ms" comment="Avoid performance peaks with find functions" />
+
+          <do_if value="$buyOffer == null">
+            <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'  could not find buyer for min amount: '+$amount*(0.8^($reduction-1))+
+                           ' min relative price: '+(-$maxBuyRelPrice-(($reduction)f-1.0)*$searchStep-0.001)+', max gates :'+($maxSell+$reduction-1)"/>
+            <continue/>
+          </do_if>
+
+          <set_value name="$amount" exact="[$amount,$buyOffer.amount].min"/>
+
+          <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="
+                       '  found buyer: ownername: '+$buyOffer.owner.knownname+'('+$buyOffer.owner.owner.knownname+'), unitprice: '+$buyOffer.unitprice+', amount: '+$buyOffer.amount+
+                       ', relative price: '+$buyOffer.relativeprice+', totalprice: '+$buyOffer.price+', sector: '+$buyOffer.owner.sector.knownname+
+                       ', gates from this ship: '+$buyOffer.owner.gatedistance.{this.ship}+', gates from home (from ship if not homebound): '+$buyOffer.owner.gatedistance.{$buyRange}+
+                       '. selling amount: '+$amount"/>
+
+          <do_if value="$buyOffer.available">
+            <write_to_logbook category="upkeep" title="'RandomTrader: '+this.ship.knownname+' ( '+this.ship.idcode+' )'" interaction="showonmap"
+                              object="this.ship" money="$buyOffer.unitprice*$amount"
+                              text="'Selling '+$amount+' '+$currentWare+', unitprice: '+$buyOffer.unitprice/100"/>
+            <create_trade_order object="this.ship" amount="$amount" tradeoffer="$buyOffer"/>
+            <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'  trade created'"/>
+            <resume label="finish"/>
+          </do_if>
+          <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'  offer not available anymore'"/>
+        </do_all>
+        <show_notification text="['RandomTrader: '+this.ship.knownname+' ('+this.ship.idcode+')', '', 'can\'t empty cargo', [$amount+' '+$currentWare, 255, 192, 126]]" sound="notification_warning" />
+        <write_to_logbook category="upkeep" title="'RandomTrader: '+this.ship.knownname+' ( '+this.ship.idcode+' )'" interaction="showonmap"
+                          object="this.ship" text="'can\'t get rid of '+$amount+' '+$currentWare+' from cargo, what should I do?'"/>
+      </do_all>
+      <remove_value name="$searchStep"/>
+      <remove_value name="$cargo"/>
+      <remove_value name="$buyOffer"/>
+
+      <!--lets see if we actually have free space in cargo before trying to trade-->
+      <do_if value="this.ship.cargo.free.container lt (this.ship.cargo.capacity.container/10)">
+        <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'  cargo is full =('"/>
+        <resume label="noTradesPossible"/>
+      </do_if>
+
+      <!-- lets see how many ships are idling in our fleet and decide if we want to seach based on that-->
+      <do_if value="@this.$randomXIdling">
+        <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'I was idling, lets see if I am allowed to attempt to wake up'"/>
+        <do_if value="if this.ship.commander then this.ship.commander.pilot.$randomXForceNext else this.$randomXForceNext" negate="true">
+          <do_all chance="100f - 100f / ((if @this.ship.commander then @this.ship.commander.pilot.$randomXIdleShips else @this.$randomXIdleShips)f + 0.1)">
+            <resume label="noTradesPossible"/>
+          </do_all>
+          <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'  I was not allowed, but decided to do it anyway =)'"/>
+        </do_if>
+        <do_else>
+          <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'  I was allowed to wake up'"/>
+          <do_if value="this.ship.commander">
+            <set_value name="this.ship.commander.pilot.$randomXForceNext" exact="0"/>
+          </do_if>
+          <do_else>
+            <set_value name="this.$randomXForceNext" exact="0"/>
+          </do_else>
+        </do_else>
+      </do_if>
+
+      <!--======== all fine, ship is ready for randomtrading =======-->
+
+      <!--station trader mode or free trade?-->
+      <do_if value="not $stationMode or $home.isclass.sector">
+        <resume label="freeTradeMode"/>
+      </do_if>
+
+      <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'--station trade mode--'"/>
+
+      <!--does our station or its build storage need any wares?-->
+      <create_list name="$myBuys"/>
+      <find_buy_offer result="$myStationBuys" buyer="$home" multiple="true" wares="$tradableWares" tradepartner="this.ship">
+        <stocklevel min="1.0-($stockRatioToBuy)f/100.0"/>
+      </find_buy_offer>
+      <wait min="1ms" max="10ms" comment="Avoid performance peaks with find functions" />
+      <find_buy_offer result="$myStorageBuys" buyer="$home.buildstorage" multiple="true" wares="$tradableWares" tradepartner="this.ship"/>
+      <wait min="1ms" max="10ms" comment="Avoid performance peaks with find functions" />
+      <do_all exact="$myStationBuys.count" counter="$myStationBuy">
+        <append_to_list name="$myBuys" exact="$myStationBuys.{$myStationBuy}"/>
+      </do_all>
+      <do_all exact="$myStorageBuys.count" counter="$myStorageBuy">
+        <append_to_list name="$myBuys" exact="$myStorageBuys.{$myStorageBuy}"/>
+      </do_all>
+      <remove_value name="$myStationBuys"/>
+      <remove_value name="$myStorageBuys"/>
+      <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'found buy offers: '+$myBuys.count"/>
+      
+      <!--lets try to find sells to supply our station-->
+      <shuffle_list list="$myBuys"/>
+      <!--first scan own stations for sells if force is toggled-->
+      <set_value name="$maxOwnBuy" exact="if $forceOwn then 100 else $maxBuy"/>
+      
+      <!--first scan own stations for sells to supply home station-->
+      <do_all exact="$myBuys.count" counter="$myBuy">
+        <wait min="1ms" max="100ms" comment="Avoid performance peaks with find functions" />
+        <set_value name="$myCurrentBuy" exact="$myBuys.{$myBuy}"/>
+        <set_value name="$currentWare" exact="$myCurrentBuy.ware"/>
+        <set_value name="$amount" exact="[this.ship.cargo.{$currentWare}.free,$myCurrentBuy.amount].min"/>
+        <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'  searching for own sells to supply home station: amount: '+$amount+
+                         ', ware: '+$currentWare"/>
+        <set_value name="$stationOrBuild" exact="if $myCurrentBuy.owner.isclass.station then 1 else 2"/>
+
+        <find_sell_offer space="player.galaxy" result="$mySellOffer" wares="$currentWare" tradepartner="this.ship">
+          <match_seller owner="$myCurrentBuy.owner.owner">
+            <match_distance object="$myCurrentBuy.owner" min="1"/>
+            <match_gate_distance object="$buyRange" max="$maxOwnBuy">
+              <blacklist group="blacklistgroup.civilian" object="this.ship"/>
+            </match_gate_distance>
+            <match_parent>
+              <match_parent>
+                <match_use_blacklist group="blacklistgroup.civilian" type="blacklisttype.sectortravel" object="this.ship"/>
+                <match_use_blacklist group="blacklistgroup.civilian" type="blacklisttype.sectoractivity" object="this.ship"/>
+              </match_parent>
+            </match_parent>
+          </match_seller>
+          <amount min="[($amount)f*(0.25+75.0/($stockRatioToBuy)f)*(1.0-($myCurrentBuy.stocklevel)f),$amount].{$stationOrBuild}"/>
+          <!--min transporting amount is variable between 25% and 100% of ship's cargo capacity (depending on amount left on home station),
+          dont waste time trader! Exception is when the buyer is a buildstorage-->
+          <price max="$myCurrentBuy.unitprice"/>
+        </find_sell_offer>
+        <wait min="1ms" max="100ms" comment="Avoid performance peaks with find functions" />
+
+        <do_if value="$mySellOffer == null">
+          <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'    no own sell offers'"/>
+          <continue/>
+        </do_if>
+
+        <set_value name="$amount" exact="[$amount,$mySellOffer.amount].min"/>
+
+        <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'    found own sell offer from: '+$mySellOffer.owner.knownname"/>
+
+        <do_if value="$myCurrentBuy.available and $mySellOffer.available">
+          <write_to_logbook category="upkeep" title="'RandomTrader: '+this.ship.knownname+' ( '+this.ship.idcode+' )'" interaction="showonmap"
+                            object="this.ship" text="'Transporting '+$amount+' '+$currentWare+' from '+$mySellOffer.owner.knownname+
+                              ' to home station.'"/>
+          <create_trade_order object="this.ship" amount="$amount" tradeoffer="$mySellOffer"/>
+          <create_trade_order object="this.ship" amount="$amount" tradeoffer="$myCurrentBuy"/>
+          <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'    trade created'"/>
+          <resume label="finish"/>
+        </do_if>
+
+        <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'      offer not available anymore'"/>
+      </do_all>
+
+      <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'--- did not find player supply possibilities ---'"/>
+      <remove_value name="$mySellOffer"/>
+      <remove_value name="$maxOwnBuy"/>
+      <remove_value name="$stationOrBuild"/>
+
+      <!--now scan for stations of other factions-->
+      <do_all exact="$myBuys.count" counter="$myBuy">
+        <wait min="1ms" max="100ms" comment="Avoid performance peaks with find functions" />
+        <set_value name="$myCurrentBuy" exact="$myBuys.{$myBuy}"/>
+        <!--implementing trade rules-->
+        <set_value name="$restrictedFactions" exact="$allowedFactions"/>
+        <do_if value="$bypass" negate="true">
+          <do_if value="$myCurrentBuy.restriction.inverted">
+            <do_all exact="$restrictedFactions.count" counter="$nr" reverse="true">
+              <do_if value="$myCurrentBuy.restriction.factions.indexof.{$restrictedFactions.{$nr}}">
+                <remove_value name="$restrictedFactions.{$nr}"/>
+              </do_if>
+            </do_all>
+          </do_if>
+          <do_else>
+            <do_all exact="$restrictedFactions.count" counter="$nr" reverse="true">
+              <do_if value="$myCurrentBuy.restriction.factions.indexof.{$restrictedFactions.{$nr}}" negate="true">
+                <remove_value name="$restrictedFactions.{$nr}"/>
+              </do_if>
+            </do_all>
+          </do_else>
+        </do_if>
+        <do_if value="$restrictedFactions.count" negate="true">
+          <continue/>
+        </do_if>
+        <set_value name="$currentWare" exact="$myCurrentBuy.ware"/>
+        <set_value name="$amount" exact="[this.ship.cargo.{$currentWare}.free,$myCurrentBuy.amount].min"/>
+
+        <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'  searching for friendly sells to supply home station: amount: '+$amount+
+                         ', ware: '+$currentWare"/>
+
+        <set_value name="$maxSupplyBuy" exact="[(-0.325-0.025*($pilotSkill)f)
+                   *(($profitScale)f/100.0),$myCurrentBuy.relativeprice].min"/>
+
+        <do_all exact="2">
+
+          <find_sell_offer space="player.galaxy" result="$sellOffer" wares="$currentWare" tradepartner="this.ship">
+            <match_seller tradesknownto="this.owner" owner="$restrictedFactions">
+              <match_distance object="$myCurrentBuy.owner" min="1"/>
+              <match_use_blacklist group="blacklistgroup.civilian" type="blacklisttype.objectactivity" object="this.ship"/>
+              <match_gate_distance object="$buyRange" max="$maxBuy">
+                <blacklist group="blacklistgroup.civilian" object="this.ship"/>
+              </match_gate_distance>
+              <match_relation_to object="this.ship" relation="neutral" comparison="ge"/><!--not buying from hostile sellers-->
+              <match_parent><!--parent of seller is zone (empty space)-->
+                <match_relation_to object="this.ship" relation="neutral" comparison="ge"/><!--not buying from friendly sellers in hostile zones-->
+                <match_parent>
+                  <match_use_blacklist group="blacklistgroup.civilian" type="blacklisttype.sectortravel" object="this.ship"/>
+                  <match_use_blacklist group="blacklistgroup.civilian" type="blacklisttype.sectoractivity" object="this.ship"/>
+                </match_parent>
+              </match_parent>
+            </match_seller>
+            <relativeprice max="$maxSupplyBuy-0.001"/>
+            <amount min="$amount"/>
+          </find_sell_offer>
+          <wait min="1ms" max="50ms" comment="Avoid performance peaks with find functions" />
+
+          <do_if value="$sellOffer == null">
+            <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'    no friendly sell offers for max relative price: '+$maxSupplyBuy"/>
+            <set_value name="$maxSupplyBuy" exact="$myCurrentBuy.relativeprice"/>
+            <continue/>
+          </do_if>
+
+          <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'    found friendly sell offer from: '+$sellOffer.owner.knownname"/>
+
+          <set_value name="$moneyNeeded" exact="$amount*$sellOffer.unitprice"/>
+
+          <!--can we afford the deal(how much money can we spend? is it enough?) ?-->
+          <set_value name="$money" exact="player.money"/>
+          <do_if value="$money lt $moneyNeeded">
+            <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'      not enough money'"/>
+            <break/>
+          </do_if>
+
+          <!-- post processing for trade rules-->
+          <do_if value="$bypass" negate="true">
+            <do_if value="$sellOffer.restriction.inverted">
+              <do_if value="$sellOffer.restriction.factions.indexof.{$myCurrentBuy.owner.owner}">
+                <continue/>
+              </do_if>
+            </do_if>
+            <do_else>
+              <do_if value="$sellOffer.restriction.faction.indexof.{$myCurrentBuy.owner.owner}" negate="true">
+                <continue/>
+              </do_if>
+            </do_else>
+          </do_if>
+
+          <do_if value="$myCurrentBuy.available and $sellOffer.available">
+            <write_to_logbook category="upkeep" title="'RandomTrader: '+this.ship.knownname+' ( '+this.ship.idcode+' )'" interaction="showonmap"
+                              object="this.ship" money="-$moneyNeeded" text="'Buying '+$amount+' '+$currentWare+' from '+$sellOffer.owner.knownname+
+                              ' to supply home station, unitprice: '+$sellOffer.unitprice/100"/>
+            <create_trade_order object="this.ship" amount="$amount" tradeoffer="$sellOffer"/>
+            <create_trade_order object="this.ship" amount="$amount" tradeoffer="$myCurrentBuy"/>
+            <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'    trade created'"/>
+            <resume label="finish"/>
+          </do_if>
+
+          <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'      offer not available anymore'"/>
+          <set_value name="$maxSupplyBuy" exact="$myCurrentBuy.relativeprice"/>
+        </do_all>
+      </do_all>
+
+      <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'--- did not find friendly supply possibilities ---'"/>
+      <remove_value name="$maxSupplyBuy"/>
+      <remove_value name="$myBuys"/>
+      <remove_value name="$myCurrentBuy"/>
+
+      <!--now lets see what our home station is selling-->
+      <find_sell_offer result="$mySells" seller="$home" multiple="true" wares="$tradableWares" tradepartner="this.ship">
+        <stocklevel min="($stockRatioToSell)f/100.0"/>
+      </find_sell_offer>
+      <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'found sell offers: '+$mySells.count"/>
+
+      <!--lets search for buy offers-->
+      <do_all exact="$mySells.count" counter="$mySell">
+        <wait min="1ms" max="100ms" comment="Avoid performance peaks with find functions" />
+        <set_value name="$myCurrentSell" exact="$mySells.{$mySell}"/>
+        <!--implementing trade rules-->
+        <set_value name="$restrictedFactions" exact="$allowedFactions"/>
+        <do_if value="$bypass" negate="true">
+          <do_if value="$myCurrentSell.restriction.inverted">
+            <do_all exact="$restrictedFactions.count" counter="$nr" reverse="true">
+              <do_if value="$myCurrentSell.restriction.factions.indexof.{$restrictedFactions.{$nr}}">
+                <remove_value name="$restrictedFactions.{$nr}"/>
+              </do_if>
+            </do_all>
+          </do_if>
+          <do_else>
+            <do_all exact="$restrictedFactions.count" counter="$nr" reverse="true">
+              <do_if value="$myCurrentSell.restriction.factions.indexof.{$restrictedFactions.{$nr}}" negate="true">
+                <remove_value name="$restrictedFactions.{$nr}"/>
+              </do_if>
+            </do_all>
+          </do_else>
+        </do_if>
+        <do_if value="$restrictedFactions.count" negate="true">
+          <continue/>
+        </do_if>
+        <set_value name="$currentWare" exact="$myCurrentSell.ware"/>
+        <set_value name="$amount" exact="[this.ship.cargo.{$currentWare}.free,$myCurrentSell.amount].min"/>
+
+        <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'  searching for buys to sell from home station: amount: '+$amount+
+                         ', ware: '+$currentWare"/>
+
+        <set_value name="$minGetRidSell" exact="[(0.325+0.025*($pilotSkill)f)
+                   *(($profitScale)f/100.0),$myCurrentSell.relativeprice].max"/>
+
+        <do_all exact="2">
+
+          <find_buy_offer tradepartner="this.ship" space="player.galaxy" result="$buyOffer" wares="$currentWare">
+            <match_buyer tradesknownto="this.owner" owner="$restrictedFactions">
+              <match_distance object="$myCurrentSell.owner" min="1"/>
+              <match_use_blacklist group="blacklistgroup.civilian" type="blacklisttype.objectactivity" object="this.ship"/>
+              <match_gate_distance object="$home" max="$maxSell">
+                <blacklist group="blacklistgroup.civilian" object="this.ship"/>
+              </match_gate_distance>
+              <match_relation_to object="this.ship" relation="neutral" comparison="ge"/><!--not buying from hostile sellers-->
+              <match_parent><!--parent of seller is zone (empty space)-->
+                <match_relation_to object="this.ship" relation="neutral" comparison="ge"/><!--not buying from friendly sellers in hostile zones-->
+                <match_parent>
+                  <match_use_blacklist group="blacklistgroup.civilian" type="blacklisttype.sectortravel" object="this.ship"/>
+                  <match_use_blacklist group="blacklistgroup.civilian" type="blacklisttype.sectoractivity" object="this.ship"/>
+                </match_parent>
+              </match_parent>
+            </match_buyer>
+            <relativeprice min="$minGetRidSell-0.001"/>
+            <totalprice min="$amount*(($currentWare.maxprice-$currentWare.averageprice)f*$minGetRidSell+$currentWare.averageprice)"/>
+          </find_buy_offer>
+          <wait min="1ms" max="50ms" comment="Avoid performance peaks with find functions" />
+
+          <do_if value="$buyOffer == null">
+            <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'    no friendly buy offers for min relative price: '+$minGetRidSell"/>
+            <set_value name="$minGetRidSell" exact="$myCurrentSell.relativeprice"/>
+            <continue/>
+          </do_if>
+
+          <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'    found friendly buy offer from: '+$buyOffer.owner.knownname"/>
+
+          <set_value name="$amount" exact="[$buyOffer.amount,$amount].min"/>
+
+          <!--can we afford the deal(how much money can we spend? is it enough?) ?-->
+          <set_value name="$moneyNeeded" exact="$amount*$myCurrentSell.unitprice"/>
+          <set_value name="$money" exact="player.money"/>
+          <do_if value="$money lt $moneyNeeded">
+            <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'      not enough money'"/>
+            <break/>
+          </do_if>
+
+          <!-- post processing for trade rules-->
+          <do_if value="$bypass" negate="true">
+            <do_if value="$buyOffer.restriction.inverted">
+              <do_if value="$buyOffer.restriction.factions.indexof.{$myCurrentSell.owner.owner}">
+                <continue/>
+              </do_if>
+            </do_if>
+            <do_else>
+              <do_if value="$buyOffer.restriction.faction.indexof.{$myCurrentSell.owner.owner}" negate="true">
+                <continue/>
+              </do_if>
+            </do_else>
+          </do_if>
+
+          <do_if value="$buyOffer.available and $myCurrentSell.available">
+            <write_to_logbook category="upkeep" title="'RandomTrader: '+this.ship.knownname+' ( '+this.ship.idcode+' )'" interaction="showonmap"
+                              object="this.ship" money="$amount*$buyOffer.unitprice" text="'Selling '+$amount+' '+$currentWare+' from home station, unitprice: '+$buyOffer.unitprice/100"/>
+            <create_trade_order object="this.ship" amount="$amount" tradeoffer="$myCurrentSell"/>
+            <create_trade_order object="this.ship" amount="$amount" tradeoffer="$buyOffer"/>
+            <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'    trade created'"/>
+            <resume label="finish"/>
+          </do_if>
+
+          <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'      offer not available anymore'"/>
+          <set_value name="$minGetRidSell" exact="$myCurrentSell.relativeprice"/>
+        </do_all>
+      </do_all>
+      
+      <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'--- did not find friendly possibilities to get rid of producing ware of home station ---'"/>
+      <remove_value name="$minGetRidSell"/>
+      <remove_value name="$mySells"/>
+      <remove_value name="$myCurrentSell"/>
+      <remove_value name="$buyOffer"/>
+
+      <!--appears we are allowed to trade whatever we want-->
+
+      <label name="freeTradeMode"/>
+      <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'--free trade mode--'"/>
+      <!--shuffling-->
+      <shuffle_list list="$tradableWares"/>
+      <!--iterate throuhg the ware list-->
+      <do_all exact="$tradableWares.count" counter="$tradableWare">
+        <wait min="1ms" max="100ms" comment="Avoid performance peaks with find functions" />
+        <set_value name="$currentWare" exact="$tradableWares.{$tradableWare}"/>
+        <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'ware: '+$currentWare+'. minprice: '+$currentWare.minprice+
+                       '. maxprice: '+$currentWare.maxprice+'. average: '+$currentWare.averageprice"/>
+
+        <!--searching for suiting sell offer-->
+        <find_sell_offer space="player.galaxy" result="$sellOffer" wares="$currentWare" tradepartner="this.ship">
+          <match_seller tradesknownto="this.owner" owner="$allowedFactions">
+            <match_use_blacklist group="blacklistgroup.civilian" type="blacklisttype.objectactivity" object="this.ship"/>
+            <match_gate_distance object="$buyRange" max="$maxBuy">
+              <blacklist group="blacklistgroup.civilian" object="this.ship"/>
+            </match_gate_distance>
+            <match_relation_to object="this.ship" relation="neutral" comparison="ge"/> <!--not buying from hostile sellers-->
+            <match_parent> <!--parent of seller is zone (empty space)-->
+              <match_relation_to object="this.ship" relation="neutral" comparison="ge"/> <!--not buying from friendly sellers in hostile zones-->
+              <match_parent>
+                <match_use_blacklist group="blacklistgroup.civilian" type="blacklisttype.sectortravel" object="this.ship"/>
+                <match_use_blacklist group="blacklistgroup.civilian" type="blacklisttype.sectoractivity" object="this.ship"/>
+              </match_parent>
+            </match_parent>
+          </match_seller>
+          <relativeprice max="$maxBuyRelPrice+0.001"/>
+        </find_sell_offer>
+        <wait min="1ms" max="100ms" comment="Avoid performance peaks with find functions" />
+
+        <do_if value="$sellOffer == null">
+          <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'no sell found'"/>
+          <continue/>
+        </do_if>
+
+        <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="
+                       'ownername: '+$sellOffer.owner.knownname+', unitprice: '+$sellOffer.unitprice+', amount: '+$sellOffer.amount+', relative price: '+$sellOffer.relativeprice+
+                       ', totalprice: '+$sellOffer.price+', sector: '+$sellOffer.owner.sector.knownname+' gates to pass: '+$sellOffer.owner.gatedistance.{this.ship}+
+                       ', gates from home (from ship if not homebound): '+$sellOffer.owner.gatedistance.{$buyRange}"/>
+
+        <set_value name="$amount" exact="[$sellOffer.amount,this.ship.cargo.{$currentWare}.free].min"/>
+        <set_value name="$minUnitPrice" exact="($minProfit/$amount)i+$sellOffer.unitprice"/>
+        <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'  Need buy offer with: amount: '+$amount+'. min unitprice: '+$minUnitPrice"/>
+
+        <do_if value="$minUnitPrice gt $currentWare.maxprice">
+          <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'    calculated minprice to high'"/>
+          <continue/>
+        </do_if>
+        <wait min="1ms" max="20ms" comment="Avoid performance peaks with find functions" />
+
+        <do_if value="$homeBound" negate="true">
+          <set_value name="$sellRange" exact="$sellOffer.seller"/> <!--will calculate gate distance from the seller, because the ship will move there-->
+        </do_if>
+
+        <!--implementing trade rules-->
+        <set_value name="$restrictedFactions" exact="$allowedFactions"/>
+        <do_if value="$bypass" negate="true">
+          <do_if value="$sellOffer.restriction.inverted">
+            <do_all exact="$restrictedFactions.count" counter="$nr" reverse="true">
+              <do_if value="$sellOffer.restriction.factions.indexof.{$restrictedFactions.{$nr}}">
+                <remove_value name="$restrictedFactions.{$nr}"/>
+              </do_if>
+            </do_all>
+          </do_if>
+          <do_else>
+            <do_all exact="$restrictedFactions.count" counter="$nr" reverse="true">
+              <do_if value="$sellOffer.restriction.factions.indexof.{$restrictedFactions.{$nr}}" negate="true">
+                <remove_value name="$restrictedFactions.{$nr}"/>
+              </do_if>
+            </do_all>
+          </do_else>
+        </do_if>
+        <do_if value="$restrictedFactions.count" negate="true">
+          <continue/>
+        </do_if>
+
+        <!--searching suiting buy offer-->
+        <find_buy_offer tradepartner="this.ship" space ="player.galaxy" result="$buyOffers" wares="$currentWare" multiple="true">
+          <match_buyer tradesknownto="this.owner" owner="$restrictedFactions">
+            <match_distance object="$sellOffer.owner" min="1"/>
+            <match_use_blacklist group="blacklistgroup.civilian" type="blacklisttype.objectactivity" object="this.ship"/>
+            <match_gate_distance object="$sellRange" max="$maxSell">
+              <blacklist group="blacklistgroup.civilian" object="this.ship"/>
+            </match_gate_distance>
+            <match_relation_to object="this.ship" relation="neutral" comparison="ge"/> <!--not selling to hostile buyers-->
+            <match_parent> <!--parent of buyer is zone (empty space)-->
+              <match_relation_to object="this.ship" relation="neutral" comparison="ge"/> <!--not selling to friendly buyers in hostile zones-->
+              <match_parent>
+                <match_use_blacklist group="blacklistgroup.civilian" type="blacklisttype.sectortravel" object="this.ship"/>
+                <match_use_blacklist group="blacklistgroup.civilian" type="blacklisttype.sectoractivity" object="this.ship"/>
+              </match_parent>
+            </match_parent>
+          </match_buyer>
+          <price min="$minUnitPrice"/>
+        </find_buy_offer>
+        <wait min="1ms" max="100ms" comment="Avoid performance peaks with find functions"/>
+
+        <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'    found '+$buyOffers.count+' buy offers with the min unitprice'"/>
+        <shuffle_list list="$buyOffers"/>        
+
+        <do_all exact="$buyOffers.count" counter="$nr">
+          <!-- post processing for trade rules-->
+          <do_if value="$bypass" negate="true">
+            <do_if value="$buyOffers.{$nr}.restriction.inverted">
+              <do_if value="$buyOffers.{$nr}.restriction.factions.indexof.{$sellOffer.owner.owner}">
+                <continue/>
+              </do_if>
+            </do_if>
+            <do_else>
+              <do_if value="$buyOffers.{$nr}.restriction.faction.indexof.{$sellOffer.owner.owner}" negate="true">
+                <continue/>
+              </do_if>
+            </do_else>
+          </do_if>
+          <!--checking here if the trade delivers the profit-->
+          <do_if value="$buyOffers.{$nr}.amount*($buyOffers.{$nr}.unitprice-$sellOffer.unitprice) ge $minProfit">
+            <set_value name="$buyOffer" exact="$buyOffers.{$nr}"/>
+            <break/>
+          </do_if>
+        </do_all>
+
+        <do_if value="@$buyOffer == null">
+          <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'    no buy found'"/>
+          <continue/>
+        </do_if>
+
+        <!--final calculations-->
+        <set_value name="$amount" exact="[$buyOffer.amount,$amount].min"/>
+        <set_value name="$profit" exact="($buyOffer.unitprice-$sellOffer.unitprice)*$amount"/>
+        <set_value name="$moneyNeeded" exact="$amount*$sellOffer.unitprice"/>
+
+        <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="
+                       '    found buyer: ownername: '+$buyOffer.owner.knownname+'('+$buyOffer.owner.owner.knownname+'), unitprice: '+$buyOffer.unitprice+', amount: '+$buyOffer.amount+
+                       ', relative price: '+$buyOffer.relativeprice+', totalprice: '+$buyOffer.price+', sector: '+$buyOffer.owner.sector.knownname+
+                       ', gates from seller: '+$buyOffer.owner.gatedistance.{$sellRange}+', gates from home (from ship if not homebound): '+$buyOffer.owner.gatedistance.{$buyRange}+
+                       '. trading amount: '+$amount+', $profit: '+$profit"/>
+
+        <wait min="1ms" max="20ms" comment="Avoid performance peaks with find functions" />
+
+        <!--can we afford the deal(how much money can we spend? is it enough?) ?-->
+        <set_value name="$money" exact="player.money"/>
+        <do_if value="$money lt $moneyNeeded">
+          <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'      not enough money'"/>
+          <continue/>
+        </do_if>
+
+        <!--setting up orders if they are still available-->
+        <do_if value="$sellOffer.available and $buyOffer.available">
+          <write_to_logbook category="upkeep" title="'RandomTrader: '+this.ship.knownname+' ( '+this.ship.idcode+' )'" interaction="showonmap"
+                            object="this.ship" money="-$moneyNeeded" bonus="$profit"
+                            text="'Random trading: '+$currentWare+', amount: '+$amount+', buyprice: '+$sellOffer.unitprice/100+', sellprice: '
+                            +$buyOffer.unitprice/100+', profit: '+$profit/100"/>
+          <create_trade_order object="this.ship" amount="$amount" tradeoffer="$sellOffer"/>
+          <create_trade_order object="this.ship" amount="$amount" tradeoffer="$buyOffer"/>
+          <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'    trade created'"/>
+          <resume label="finish"/>
+        </do_if>
+        <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'      offer not available anymore'"/>
+      </do_all>
+
+      <label name="noTradesPossible"/>
+      <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'--- NO POSSIBLE TRADES FOUND ---'"/>
+      <set_value name="this.$randomXIdling" exact="1"/>
+      <!--I could not find any trade for the required min profit, maybe scale down (use slider)? visit more stations/deploy more sattelites-->
+      <wait min="120s" max="200s"/>
+      <resume label="end"/>
+
+      <label name="finish"/>
+      <do_if value="@this.$randomXIdling">
+        <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'    I woke up from idle, allowing next ship in fleet to also wake up'"/>
+        <set_value name="this.$randomXIdling" exact="0"/>
+        <do_if value="this.ship.commander">
+          <set_value name="this.ship.commander.pilot.$randomXForceNext" exact="1"/>
+        </do_if>
+        <do_else>
+          <set_value name="this.$randomXForceNext" exact="1"/>
+        </do_else>
+      </do_if>
+      <label name="end"/>
+      <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'    end'"/>
+    </actions>
+  </attention>
+</aiscript>

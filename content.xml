@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<content id="ws_1684361910" name="RandomTrade" description="Random Trader: Randomized trade logic." author="Language" version="122" date="2021-03-23" save="0" sync="false" lastupdate="1616526020">
+  <dependency version="250"/>
+  <text language="7" name="RandomTrade" description="RandomTrade" author="Language"/>
+  <text language="33" name="RandomTrade" description="RandomTrade" author="Language"/>
+  <text language="34" name="RandomTrade" description="RandomTrade" author="Language"/>
+  <text language="39" name="RandomTrade" description="RandomTrade" author="Language"/>
+  <text language="44" name="RandomTrade" description="RandomTrade" author="Language"/>
+  <text language="49" name="RandomTrade" description="RandomTrade" author="Language"/>
+  <text language="55" name="RandomTrade" description="RandomTrade" author="Language"/>
+  <text language="81" name="RandomTrade" description="RandomTrade" author="Language"/>
+  <text language="82" name="RandomTrade" description="RandomTrade" author="Language"/>
+  <text language="86" name="RandomTrade" description="RandomTrade" author="Language"/>
+  <text language="88" name="RandomTrade" description="RandomTrade" author="Language"/>
+</content>
