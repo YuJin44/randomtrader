@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- RandomTrade Ai, Created by Language. Version 122-->
-<aiscript xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="randomtrader" xsi:noNamespaceSchemaLocation="aiscripts.xsd" version="122">
+<!-- RandomTrade Ai, Created by Language. Version 123-->
+<aiscript xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="randomtrader" xsi:noNamespaceSchemaLocation="aiscripts.xsd" version="123">
   <order id="RandomTrade" name="RandomTrade" description="Random Trader Logic" category="trade" infinite="true">
     <params>
       <!-- Define where the trader will base itself -->
@@ -40,7 +40,11 @@
       <param name="stationBuildingWares" type="bool" default="false" text="StationBuilding Wares" comment="Enable all the stationbuilding wares."/>
       <param name="hightechWares" type="bool" default="false" text="HighTech Wares" comment="Enable all the HichTech wares."/>
       <param name="refinedWares" type="bool" default="false" text="Refined Wares" comment="Enable all the Refined wares."/>
-      <param name="bioWares" type="bool" default="false" text="Biological Wares" comment="Enable all the Bio wares."/>
+      <param name="bioWares" type="bool" default="false" text="Biological Wares" comment="Enable all the Bio wares."/> 
+      <param name="energyWares" type="bool" default="false" text="Energy Wares" comment="Enable all the energy wares."/>
+      <param name="equipmentWares" type="bool" default="false" text="Equipment Wares" comment="Enable all the equipment wares."/>
+      <param name="foodWares" type="bool" default="false" text="Food Wares" comment="Enable all the food wares."/>
+      <param name="survaceWares" type="bool" default="false" text="Surface Wares" comment="Enable all the Bio wares."/>
       
       <!--scale min profit?-->
       <param name="profitScale" type="number" text="Scale min profit? (%)" default="100" comment="Should we look for trades with less profit in order to find one more likely?">
@@ -62,7 +66,7 @@
       </param>
       
       <!-- Allowed factions. -->
-      <param name="allowAllFactions" type="bool" default="false" text="Allow all factions" comment="Allow all factions to trade with?"/>
+      <param name="allowAllFactions" type="bool" default="false" text="Allow all friendly factions" comment="Allow all factions to trade with?"/>
       <param name="allowPlayer" type="bool" default="true" text="{20203,101}" comment="Allow this faction?"/>
       <!-- Argon Based Factions -->
       <param name="allowArgon" type="bool" default="true" text="{20203,201}" comment="Allow this faction?"/>
@@ -80,6 +84,11 @@
       <!-- Terran Factions (DLC)-->
       <param name="allowTerran" type="bool" default="true" text="{20203,3001}" comment="Allow this faction?"/>
       <param name="allowPioneers" type="bool" default="true" text="{20203,2901}" comment="Allow this faction?"/>
+      <!-- ToA Factions (DLC)-->
+      <param name="allowLoanshark" type="bool" default="true" text="{20203,3301}" comment="Allow this faction?"/>
+      <param name="allowScavenger" type="bool" default="true" text="{20203,3201}" comment="Allow this faction?"/>
+      <!-- Kingdom End Factions (DLC)-->
+      <param name="allowBoron" type="bool" default="true" text="{20203,1301}" comment="Allow this faction?"/>
       <!-- Pirate Factions -->
       <param name="allowHatikvah" type="bool" default="true" text="{20203,901}" comment="Allow this faction?"/>
       <param name="allowScaleplate" type="bool" default="false" text="{20203,1001}" comment="Allow this faction?"/>
@@ -109,7 +118,7 @@
       <replace string="'('" with="''"/>
       <replace string="')'" with="''"/>
     </substitute_text>
-    <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'Starting Log File Version: 122'" append="false"/>
+    <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'Starting Log File Version: 123'" append="false"/>
     
     <set_order_syncpoint_reached order="this.ship.order"/>
 
@@ -117,16 +126,14 @@
 
     <!--which factions do we allow?-->
     <do_if value="$allowAllFactions">
-      <set_value name="$allowedFactions" exact="[faction.player,faction.argon,faction.antigone,faction.paranid,faction.holyorder,faction.alliance,
-                 faction.teladi,faction.ministry,faction.hatikvah,faction.scaleplate]"/>
-      <do_if value="faction.split">
-        <append_to_list name="$allowedFactions" exact="faction.split"/>
-        <append_to_list name="$allowedFactions" exact="faction.freesplit"/>
-      </do_if>
-      <do_if value="faction.terran">
-        <append_to_list name="$allowedFactions" exact="faction.terran"/>
-        <append_to_list name="$allowedFactions" exact="faction.pioneers"/>
-        <append_to_list name="$allowedFactions" exact="faction.yaki"/>
+      <get_factions_by_relation relation="dock" result="$allowedFactions" faction="faction.player"/>
+      <do_all exact="$allowedFactions.count" counter="$z" reverse="true">
+        <do_if value="$allowedFactions.{$z}.iseconomic and $allowedFactions.{$z}.isactive" negate="true">
+          <remove_value name="$allowedFactions.{$z}"/>
+        </do_if>
+      </do_all>
+      <do_if value="$allowedFactions.indexof.{faction.player}" negate="true">
+        <append_to_list name="$allowedFactions" exact="faction.player"/>
       </do_if>
     </do_if>
     <do_else>
@@ -140,6 +147,12 @@
       <do_if value="$allowAntigone">
         <append_to_list name="$allowedFactions" exact="faction.antigone"/>
       </do_if>
+      <do_if value="$allowTeladi">
+        <append_to_list name="$allowedFactions" exact="faction.teladi"/>
+      </do_if>
+      <do_if value="$allowMinistry">
+        <append_to_list name="$allowedFactions" exact="faction.ministry"/>
+      </do_if>
       <do_if value="$allowParanid">
         <append_to_list name="$allowedFactions" exact="faction.paranid"/>
       </do_if>
@@ -149,29 +162,32 @@
       <do_if value="$allowAlliance">
         <append_to_list name="$allowedFactions" exact="faction.alliance"/>
       </do_if>
-      <do_if value="$allowTeladi">
-        <append_to_list name="$allowedFactions" exact="faction.teladi"/>
+      <do_if value="$allowSplit and @faction.split">
+        <append_to_list name="$allowedFactions" exact="@faction.split"/>
       </do_if>
-      <do_if value="$allowMinistry">
-        <append_to_list name="$allowedFactions" exact="faction.ministry"/>
+      <do_if value="$allowFreeSplit and @faction.freesplit">
+        <append_to_list name="$allowedFactions" exact="@faction.freesplit"/>
+      </do_if>
+      <do_if value="$allowTerran and @faction.terran">
+        <append_to_list name="$allowedFactions" exact="@faction.terran"/>
+      </do_if>
+      <do_if value="$allowPioneers and @faction.pioneers">
+        <append_to_list name="$allowedFactions" exact="@faction.pioneers"/>
+      </do_if>
+      <do_if value="$allowLoanshark and @faction.loanshark">
+        <append_to_list name="$allowedFactions" exact="@faction.loanshark"/>
+      </do_if>
+      <do_if value="$allowScavenger and @faction.scavenger">
+        <append_to_list name="$allowedFactions" exact="@faction.scavenger"/>
+      </do_if>
+      <do_if value="$allowBoron and @faction.boron">
+        <append_to_list name="$allowedFactions" exact="@faction.boron"/>
       </do_if>
       <do_if value="$allowHatikvah">
         <append_to_list name="$allowedFactions" exact="faction.hatikvah"/>
       </do_if>
-      <do_if value="$allowSplit and faction.split">
-        <append_to_list name="$allowedFactions" exact="faction.split"/>
-      </do_if>
-      <do_if value="$allowFreeSplit and faction.freesplit">
-        <append_to_list name="$allowedFactions" exact="faction.freesplit"/>
-      </do_if>
-      <do_if value="$allowTerran and faction.terran">
-        <append_to_list name="$allowedFactions" exact="faction.terran"/>
-      </do_if>
-      <do_if value="$allowPioneers and faction.pioneers">
-        <append_to_list name="$allowedFactions" exact="faction.pioneers"/>
-      </do_if>
-      <do_if value="$allowYaki and faction.yaki">
-        <append_to_list name="$allowedFactions" exact="faction.yaki"/>
+      <do_if value="$allowYaki and @faction.yaki">
+        <append_to_list name="$allowedFactions" exact="@faction.yaki"/>
       </do_if>
       <do_if value="$allowScaleplate">
         <append_to_list name="$allowedFactions" exact="faction.scaleplate"/>
@@ -214,58 +230,64 @@
       <label name="wareLists"/>
       <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'detected presets'"/>
       <do_if value="$allWares and $listCounter lt 1">
-        <set_value name="$waresToAdd" exact="[ware.spacefuel,ware.spaceweed,ware.advancedcomposites,ware.advancedelectronics,ware.antimattercells,ware.antimatterconverters,ware.claytronics,
-                     ware.dronecomponents,ware.engineparts,ware.fieldcoils,ware.hullparts,ware.refinedmetals,ware.scanningarrays,ware.shieldcomponents,ware.siliconwafers,
-                     ware.teladianium,ware.turretcomponents,ware.water,ware.wheat,ware.energycells,ware.foodrations,ware.graphene,ware.majadust,ware.majasnails,ware.meat,ware.cheltmeat,
-                     ware.scruffinfruits,ware.microchips,ware.quantumtubes,ware.medicalsupplies,ware.missilecomponents,ware.nostropoil,ware.plasmaconductors,ware.smartchips,ware.sojabeans,
-                     ware.sojahusk,ware.spices,ware.sunriseflowers,ware.superfluidcoolant,ware.swampplant,ware.weaponcomponents, ware.computronicsubstrate,ware.metallicmicrolattice,
-                     ware.proteinpaste,ware.stimulants,ware.terranmre,ware.siliconcarbide]"/>
+        <get_ware_definition result="$waresToAdd" flags="economy" tags="tag.container"/>
         <set_value name="$listCounter" exact="100"/>
         <resume label="addtoWaresToBasket"/>
       </do_if>
       <do_elseif value="$legalWares and $listCounter lt 1">
-        <set_value name="$waresToAdd" exact="[ware.advancedcomposites,ware.advancedelectronics,ware.antimattercells,ware.antimatterconverters,ware.claytronics,
-                     ware.dronecomponents,ware.engineparts,ware.fieldcoils,ware.hullparts,ware.refinedmetals,ware.scanningarrays,ware.shieldcomponents,ware.siliconwafers,
-                     ware.teladianium,ware.turretcomponents,ware.water,ware.wheat,ware.energycells,ware.foodrations,ware.graphene,ware.majasnails,ware.meat,ware.cheltmeat,
-                     ware.scruffinfruits,ware.microchips,ware.quantumtubes,ware.medicalsupplies,ware.missilecomponents,ware.nostropoil,ware.plasmaconductors,ware.smartchips,ware.sojabeans,
-                     ware.sojahusk,ware.spices,ware.sunriseflowers,ware.superfluidcoolant,ware.swampplant,ware.weaponcomponents,ware.computronicsubstrate,ware.metallicmicrolattice,
-                     ware.proteinpaste,ware.siliconcarbide]"/>
+        <get_ware_definition result="$waresToAdd" flags="economy" tags="tag.container"/>
+        <remove_from_list name="$waresToAdd" multiple="true" list="warebasket.global_illegal.list"/>
         <set_value name="$listCounter" exact="6"/>
         <resume label="addtoWaresToBasket"/>
       </do_elseif>
       <do_elseif value="$bioWares and $listCounter lt 2">
-        <set_value name="$waresToAdd" exact="[ware.spices,ware.meat,ware.cheltmeat,ware.scruffinfruits,ware.wheat,ware.sojabeans,ware.majasnails,ware.sunriseflowers,
-                   ware.swampplant,ware.water,ware.foodrations,ware.medicalsupplies,ware.nostropoil,ware.sojahusk,ware.proteinpaste,ware.terranmre]"/>
+        <set_value name="$waresToAdd" exact="warebasket.bio.list"/>
         <set_value name="$listCounter" exact="2"/>
         <resume label="addtoWaresToBasket"/>
       </do_elseif>
       <do_elseif value="$shipBuildingWares and $listCounter lt 3">
-        <set_value name="$waresToAdd" exact="[ware.energycells,ware.engineparts,ware.hullparts,ware.fieldcoils,ware.advancedelectronics,ware.weaponcomponents,ware.turretcomponents,
-                   ware.antimatterconverters,ware.dronecomponents,ware.missilecomponents,ware.computronicsubstrate,ware.metallicmicrolattice]"/>
+        <set_value name="$waresToAdd" exact="warebasket.construction_ships.list"/>
         <set_value name="$listCounter" exact="3"/>
         <resume label="addtoWaresToBasket"/>
       </do_elseif>
       <do_elseif value="$stationBuildingWares and $listCounter lt 4">
-        <set_value name="$waresToAdd" exact="[ware.energycells,ware.hullparts,ware.claytronics,ware.advancedelectronics,ware.turretcomponents,ware.shieldcomponents,ware.fieldcoils,
-                   ware.computronicsubstrate,ware.metallicmicrolattice]"/>
+        <set_value name="$waresToAdd" exact="warebasket.construction_ships.list"/>
         <set_value name="$listCounter" exact="4"/>
         <resume label="addtoWaresToBasket"/>
       </do_elseif>
       <do_elseif value="$hightechWares and $listCounter lt 5">
-        <set_value name="$waresToAdd" exact="[ware.advancedcomposites,ware.engineparts,ware.hullparts,ware.microchips,ware.plasmaconductors,ware.quantumtubes,ware.scanningarrays,
-                   ware.smartchips,ware.computronicsubstrate,ware.siliconcarbide]"/>
+        <set_value name="$waresToAdd" exact="warebasket.tech.list"/>
         <set_value name="$listCounter" exact="5"/>
         <resume label="addtoWaresToBasket"/>
       </do_elseif>
       <do_elseif value="$refinedWares and $listCounter lt 6">
-        <set_value name="$waresToAdd" exact="[ware.antimattercells,ware.graphene,ware.superfluidcoolant,ware.refinedmetals,ware.siliconwafers,ware.teladianium,
-                   ware.metallicmicrolattice]"/>
+        <set_value name="$waresToAdd" exact="warebasket.refined.list"/>
         <set_value name="$listCounter" exact="6"/>
         <resume label="addtoWaresToBasket"/>
       </do_elseif>
       <do_elseif value="$illegalWares and $listCounter lt 7">
-        <set_value name="$waresToAdd" exact="[ware.spacefuel,ware.spaceweed,ware.majadust,ware.stimulants]"/>
+        <set_value name="$waresToAdd" exact="warebasket.global_illegal.list"/>
         <set_value name="$listCounter" exact="7"/>
+        <resume label="addtoWaresToBasket"/>
+      </do_elseif>
+      <do_elseif value="$energyWares and $listCounter lt 8">
+        <set_value name="$waresToAdd" exact="warebasket.energy.list"/>
+        <set_value name="$listCounter" exact="8"/>
+        <resume label="addtoWaresToBasket"/>
+      </do_elseif>
+      <do_elseif value="$equipmentWares and $listCounter lt 9">
+        <set_value name="$waresToAdd" exact="warebasket.equipment.list"/>
+        <set_value name="$listCounter" exact="9"/>
+        <resume label="addtoWaresToBasket"/>
+      </do_elseif>
+      <do_elseif value="$foodWares and $listCounter lt 10">
+        <set_value name="$waresToAdd" exact="warebasket.food.list"/>
+        <set_value name="$listCounter" exact="10"/>
+        <resume label="addtoWaresToBasket"/>
+      </do_elseif>
+      <do_elseif value="$survaceWares and $listCounter lt 11">
+        <set_value name="$waresToAdd" exact="warebasket.surface.list"/>
+        <set_value name="$listCounter" exact="11"/>
         <resume label="addtoWaresToBasket"/>
       </do_elseif>
 
@@ -328,6 +350,10 @@
           <param name="hightechWares"         value="$hightechWares"/>
           <param name="refinedWares"          value="$refinedWares"/>
           <param name="bioWares"              value="$bioWares"/>
+          <param name="energyWares"           value="$energyWares"/>
+          <param name="equipmentWares"        value="$equipmentWares"/>
+          <param name="foodWares"             value="$foodWares"/>
+          <param name="survaceWares"          value="$survaceWares"/>
           <param name="profitScale"           value="$profitScale"/>
           <param name="stockRatioToBuy"       value="$stockRatioToBuy"/>
           <param name="stockRatioToSell"      value="$stockRatioToSell"/>
@@ -339,12 +365,15 @@
           <param name="allowMinistry"         value="$allowMinistry"/>
           <param name="allowParanid"          value="$allowParanid"/>
           <param name="allowHolyOrder"        value="$allowHolyOrder"/>
+          <param name="allowAlliance"         value="$allowAlliance"/>
           <param name="allowSplit"            value="$allowSplit"/>
           <param name="allowFreeSplit"        value="$allowFreeSplit"/>
-          <param name="allowAlliance"         value="$allowAlliance"/>
-          <param name="allowHatikvah"         value="$allowHatikvah"/>
           <param name="allowTerran"           value="$allowTerran"/>
           <param name="allowPioneers"         value="$allowPioneers"/>
+          <param name="allowLoanshark"        value="$allowLoanshark"/>
+          <param name="allowScavenger"        value="$allowScavenger"/>
+          <param name="allowBoron"            value="$allowBoron"/>
+          <param name="allowHatikvah"         value="$allowHatikvah"/>
           <param name="allowScaleplate"       value="$allowScaleplate"/>
           <param name="allowYaki"             value="$allowYaki"/>
           <param name="updateSubordinates"    value="$updateSubordinates"/>
