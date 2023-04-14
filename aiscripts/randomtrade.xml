@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- RandomTrade Ai, Created by Language. Version 123-->
-<aiscript xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="randomtrader" xsi:noNamespaceSchemaLocation="aiscripts.xsd" version="123">
+<!-- RandomTrade Ai, Created by Language. Version 124-->
+<aiscript xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="randomtrader" xsi:noNamespaceSchemaLocation="aiscripts.xsd" version="124">
   <order id="RandomTrade" name="RandomTrade" description="Random Trader Logic" category="trade" infinite="true">
     <params>
       <!-- Define where the trader will base itself -->
@@ -118,7 +118,7 @@
       <replace string="'('" with="''"/>
       <replace string="')'" with="''"/>
     </substitute_text>
-    <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'Starting Log File Version: 123'" append="false"/>
+    <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'Starting Log File Version: 124'" append="false"/>
     
     <set_order_syncpoint_reached order="this.ship.order"/>
 
@@ -378,6 +378,8 @@
           <param name="allowYaki"             value="$allowYaki"/>
           <param name="updateSubordinates"    value="$updateSubordinates"/>
         </create_order>
+        <release_commandeered_object object="$subordinate"/>
+        <wait min="800ms" max="1s"/>
         <set_object_commander object="$subordinate" commander="this.ship" assignment="assignment.trade"/>
         <do_if value="@$updating" negate="true">
           <remove_value name="$updating"/>
