@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<content id="ws_1684361910" name="RandomTrade" description="Random Trader: Randomized trade logic." author="Language" version="124" date="2023-04-14" save="0" sync="false" lastupdate="1681501491">
+<content id="ws_1684361910" name="RandomTrade" description="Random Trader: Randomized trade logic." author="Language" version="125" date="2023-05-19" save="0" sync="false" lastupdate="1684524103">
   <dependency version="250"/>
   <text language="7" name="RandomTrade" description="RandomTrade" author="Language"/>
   <text language="33" name="RandomTrade" description="RandomTrade" author="Language"/>

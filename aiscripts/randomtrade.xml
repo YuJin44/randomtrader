@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- RandomTrade Ai, Created by Language. Version 124-->
-<aiscript xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="randomtrader" xsi:noNamespaceSchemaLocation="aiscripts.xsd" version="124">
+<!-- RandomTrade Ai, Created by Language. Version 125-->
+<aiscript xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="randomtrader" xsi:noNamespaceSchemaLocation="aiscripts.xsd" version="125">
   <order id="RandomTrade" name="RandomTrade" description="Random Trader Logic" category="trade" infinite="true">
     <params>
       <!-- Define where the trader will base itself -->
@@ -118,7 +118,7 @@
       <replace string="'('" with="''"/>
       <replace string="')'" with="''"/>
     </substitute_text>
-    <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'Starting Log File Version: 124'" append="false"/>
+    <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'Starting Log File Version: 125'" append="false"/>
     
     <set_order_syncpoint_reached order="this.ship.order"/>
 
@@ -539,12 +539,8 @@
       <wait min="1ms" max="10ms" comment="Avoid performance peaks with find functions" />
       <find_buy_offer result="$myStorageBuys" buyer="$home.buildstorage" multiple="true" wares="$tradableWares" tradepartner="this.ship"/>
       <wait min="1ms" max="10ms" comment="Avoid performance peaks with find functions" />
-      <do_all exact="$myStationBuys.count" counter="$myStationBuy">
-        <append_to_list name="$myBuys" exact="$myStationBuys.{$myStationBuy}"/>
-      </do_all>
-      <do_all exact="$myStorageBuys.count" counter="$myStorageBuy">
-        <append_to_list name="$myBuys" exact="$myStorageBuys.{$myStorageBuy}"/>
-      </do_all>
+      <append_list_elements name="$myBuys" other="$myStationBuys"/>
+      <append_list_elements name="$myBuys" other="$myStorageBuys"/>
       <remove_value name="$myStationBuys"/>
       <remove_value name="$myStorageBuys"/>
       <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'found buy offers: '+$myBuys.count"/>
@@ -778,7 +774,7 @@
               </match_parent>
             </match_buyer>
             <relativeprice min="$minGetRidSell-0.001"/>
-            <totalprice min="$amount*(($currentWare.maxprice-$currentWare.averageprice)f*$minGetRidSell+$currentWare.averageprice)"/>
+            <totalprice min="($amount*(($currentWare.maxprice-$currentWare.averageprice)f*$minGetRidSell+$currentWare.averageprice) / 1Cr)Cr"/>
           </find_buy_offer>
           <wait min="1ms" max="50ms" comment="Avoid performance peaks with find functions" />
 
@@ -838,17 +834,12 @@
 
       <label name="freeTradeMode"/>
       <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'--free trade mode--'"/>
-      <!--shuffling-->
-      <shuffle_list list="$tradableWares"/>
       <!--iterate throuhg the ware list-->
-      <do_all exact="$tradableWares.count" counter="$tradableWare">
+      <do_all exact="10">
         <wait min="1ms" max="100ms" comment="Avoid performance peaks with find functions" />
-        <set_value name="$currentWare" exact="$tradableWares.{$tradableWare}"/>
-        <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'ware: '+$currentWare+'. minprice: '+$currentWare.minprice+
-                       '. maxprice: '+$currentWare.maxprice+'. average: '+$currentWare.averageprice"/>
 
         <!--searching for suiting sell offer-->
-        <find_sell_offer space="player.galaxy" result="$sellOffer" wares="$currentWare" tradepartner="this.ship">
+        <find_sell_offer space="player.galaxy" result="$sellOffer" wares="$tradableWares" tradepartner="this.ship">
           <match_seller tradesknownto="this.owner" owner="$allowedFactions">
             <match_use_blacklist group="blacklistgroup.civilian" type="blacklisttype.objectactivity" object="this.ship"/>
             <match_gate_distance object="$buyRange" max="$maxBuy">
@@ -866,6 +857,9 @@
           <relativeprice max="$maxBuyRelPrice+0.001"/>
         </find_sell_offer>
         <wait min="1ms" max="100ms" comment="Avoid performance peaks with find functions" />
+        <set_value name="$currentWare" exact="$sellOffer.ware"/>
+        <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'ware: '+$currentWare+'. minprice: '+$currentWare.minprice+
+                       '. maxprice: '+$currentWare.maxprice+'. average: '+$currentWare.averageprice"/>
 
         <do_if value="$sellOffer == null">
           <debug_to_file name="$debugFileName" directory="'RandomTrader'" text="'no sell found'"/>
